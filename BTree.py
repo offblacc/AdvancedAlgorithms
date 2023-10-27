@@ -1,61 +1,57 @@
 from math import ceil
 
-
 class BTValue:
     pass
-
 
 class BTNode:
     pass
 
-
 class BTValue:
     value = None
-    prev, next, lc, rc = None, None, None, None
+    prev, next, left_child, right_child = None, None, None, None
 
     def __init__(self, value) -> None:
         self.value = value
 
-    def setnext(self, btv: BTValue) -> None:
+    def set_next(self, btv: BTValue) -> None:
         self.next = btv
         if btv is not None:
             btv.prev = self
 
-    def setleftchild(self, lc: BTNode, pn: BTValue = None) -> None:
-        self.lc = lc
-        if self.lc is not None:
-            if pn is not None:
-                self.lc.pn = pn
-            self.lc.pv = self
+    def set_left_child(self, lc: BTNode, parent_node: BTValue = None) -> None:
+        self.left_child = lc
+        if self.left_child is not None:
+            if parent_node is not None:
+                self.left_child.parent_node = parent_node
+            self.left_child.parent_value = self
 
-    def setrightchild(self, rc: BTNode, pn: BTValue = None) -> None:
-        self.rc = rc
-        if self.rc is not None:
-            if pn is not None:
-                self.rc.pn = pn
-            self.rc.pv = self
+    def set_right_child(self, rc: BTNode, parent_node: BTValue = None) -> None:
+        self.right_child = rc
+        if self.right_child is not None:
+            if parent_node is not None:
+                self.right_child.parent_node = parent_node
+            self.right_child.parent_value = self
 
-    def clearleftchild(self) -> None:
-        self.lc = None
+    def clear_left_child(self) -> None:
+        self.left_child = None
 
-    def clearrightchild(self) -> None:
-        self.rc = None
-
+    def clear_right_child(self) -> None:
+        self.right_child = None
 
 class BTNode:
-    start, last, pn, pv, orphan = None, None, None, None, None
-    size, deg = 0, 5
+    start, last, parent_node, parent_value, orphan = None, None, None, None, None
+    size, degree = 0, 5
 
     def __init__(
-        self, value=None, start: BTValue = None, deg: int = 5, initsize: int = 1
+        self, value=None, start: BTValue = None, degree: int = 5, initial_size: int = 1
     ) -> None:
         if value is not None:
             self.start = BTValue(value)
         if start is not None:
             self.start = start
         self.last = self.start
-        self.size = initsize
-        self.deg = deg
+        self.size = initial_size
+        self.degree = degree
 
     def search(self, value) -> (BTNode, BTValue):
         if self.start is None:
@@ -66,13 +62,13 @@ class BTNode:
         if v.value == value:
             return (self, v)
         elif v.next is None and v.value < value:
-            if v.rc is not None:
-                return v.rc.search(value)
+            if v.right_child is not None:
+                return v.right_child.search(value)
             else:
                 return (self, None)
         else:
-            if v.lc is not None:
-                return v.lc.search(value)
+            if v.left_child is not None:
+                return v.left_child.search(value)
             else:
                 return (self, None)
 
@@ -80,230 +76,229 @@ class BTNode:
         v = self.start
         while v is not None and v.value <= value:
             v = v.next
-        nv = BTValue(value)
+        new_value = BTValue(value)
         if v is not None:
-            pv = v.prev
-            nv.setnext(v)
-            if pv is not None:
-                pv.setnext(nv)
+            previous_value = v.prev
+            new_value.set_next(v)
+            if previous_value is not None:
+                previous_value.set_next(new_value)
             else:
-                self.start = nv
+                self.start = new_value
         else:
             if self.last is not None:
-                self.last.setnext(nv)
+                self.last.set_next(new_value)
             else:
-                self.start = nv
-        if nv.next is None:
-            self.last = nv
+                self.start = new_value
+        if new_value.next is None:
+            self.last = new_value
         self.size = self.size + 1
-        return nv
+        return new_value
 
-    def _adjustParent(self) -> None:
+    def _adjust_parent(self) -> None:
         v = self.start
         while v is not None:
-            if v.lc is not None:
-                v.lc.pn = self
-            if v.rc is not None:
-                v.rc.pn = self
+            if v.left_child is not None:
+                v.left_child.parent_node = self
+            if v.right_child is not None:
+                v.right_child.parent_node = self
             v = v.next
 
     def split(self) -> BTNode:
-        if self.size >= self.deg:
-            s = ceil(self.deg / 2) - 1
-            nl = BTNode(start=self.start, deg=self.deg, initsize=s)
-            nl.pn = self.pn
+        if self.size >= self.degree:
+            s = ceil(self.degree / 2) - 1
+            new_left = BTNode(start=self.start, degree=self.degree, initial_size=s)
+            new_left.parent_node = self.parent_node
             v = self.start
             for i in range(s - 1):
                 v = v.next
-            nm = v.next
+            new_middle = v.next
             v.next = None
-            v.setrightchild(nm.lc)
-            nl.last = v
-            nl._adjustParent()
-            nr = self
-            nr.start, nr.size = nm.next, nr.size - 1 - s
-            nm.next, nr.start.prev = None, None
-            if nr.pn is not None:  # 2b
-                nv = nr.pn.insert(nm.value)
-                nv.setleftchild(nl)
-                if nv.next is None:
-                    nv.setrightchild(nv.prev.rc)
-                    nv.prev.setrightchild(None)
-                if nr.pn is not None:
-                    return nr.pn.split()
-            else:  # 2a
-                nroot = BTNode(value=nm.value, deg=self.deg, initsize=1)
-                nl.pn, nr.pn = nroot, nroot
-                nroot.start.setleftchild(nl)
-                nroot.start.setrightchild(nr)
-                return nroot
+            v.set_right_child(new_middle.left_child)
+            new_left.last = v
+            new_left._adjust_parent()
+            new_right = self
+            new_right.start, new_right.size = new_middle.next, new_right.size - 1 - s
+            new_middle.next, new_right.start.prev = None, None
+            if new_right.parent_node is not None:
+                new_value = new_right.parent_node.insert(new_middle.value)
+                new_value.set_left_child(new_left)
+                if new_value.next is None:
+                    new_value.set_right_child(new_value.prev.right_child)
+                    new_value.prev.set_right_child(None)
+                if new_right.parent_node is not None:
+                    return new_right.parent_node.split()
+            else:
+                new_root = BTNode(value=new_middle.value, degree=self.degree, initial_size=1)
+                new_left.parent_node, new_right.parent_node = new_root, new_root
+                new_root.start.set_left_child(new_left)
+                new_root.start.set_right_child(new_right)
+                return new_root
         return None
 
-    def _maxvalue(self) -> (BTNode, BTValue):
+    def _max_value(self) -> (BTNode, BTValue):
         if self.last is None:
             return (self, None)
-        if self.last.rc is not None:
-            return self.last.rc.maxvalue()
+        if self.last.right_child is not None:
+            return self.last.right_child.max_value()
         else:
             return (self, self.last)
 
-    def _minvalue(self) -> (BTNode, BTValue):
+    def _min_value(self) -> (BTNode, BTValue):
         if self.start is None:
             return (self, None)
-        if self.start.lc is not None:
-            return self.start.lc.minvalue()
+        if self.start.left_child is not None:
+            return self.start.left_child.min_value()
         else:
             return (self, self.start)
 
     def _siblings(self) -> (BTNode, BTNode):
-        ps, ss, pv = None, None, self.pv
-        if pv is not None:
-            if pv.lc == self:
-                if pv.prev is not None:
-                    ps = pv.prev.lc
-                if pv.rc is not None:
-                    ss = pv.rc
-                elif pv.next is not None:
-                    ss = pv.next.lc
-            elif pv.rc == self:
-                ps = pv.lc
-        return (ps, ss)
+        previous_sibling, next_sibling, parent_value = None, None, self.parent_value
+        if parent_value is not None:
+            if parent_value.left_child == self:
+                if parent_value.prev is not None:
+                    previous_sibling = parent_value.prev.left_child
+                if parent_value.right_child is not None:
+                    next_sibling = parent_value.right_child
+                elif parent_value.next is not None:
+                    next_sibling = parent_value.next.left_child
+            elif parent_value.right_child == self:
+                previous_sibling = parent_value.left_child
+        return (previous_sibling, next_sibling)
 
-    def _removevalue(self, v: BTValue) -> (BTValue, BTValue, BTValue):
-        pv, nv = v.prev, v.next
-        if pv is None:
-            if nv is not None:
-                self.start = nv
-                nv.prev = None
+    def _remove_value(self, v: BTValue) -> (BTValue, BTValue, BTValue):
+        previous_value, next_value = v.prev, v.next
+        if previous_value is None:
+            if next_value is not None:
+                self.start = next_value
+                next_value.prev = None
             else:
                 self.start, self.last = None, None
         else:
-            if nv is not None:
-                pv.next = nv
-                nv.prev = pv
+            if next_value is not None:
+                previous_value.next = next_value
+                next_value.prev = previous_value
             else:
-                pv.next = None
-                self.last = pv
+                previous_value.next = None
+                self.last = previous_value
         self.size = self.size - 1
-        return (pv, v, nv)
+        return (previous_value, v, next_value)
 
-    def _shiftleft(self, nl: BTNode, v: BTValue, nr: BTNode) -> None:
+    def _shift_left(self, new_left: BTNode, v: BTValue, new_right: BTNode) -> None:
         if v.value is None:
             return
-        nl.insert(v.value)
-        if nl.last.prev is not None:
-            nl.last.setleftchild(nl.last.prev.rc, nl)
-            nl.last.prev.clearrightchild()
-        elif nl.orphan is not None:
-            nl.last.setleftchild(nl.orphan, nl)
-            nl.orphan = None
-        if nr.size > 0:
-            nl.last.setrightchild(nr.start.lc, nl)
-            if nr.size == 1:
-                nr.orphan = nr.start.rc
-            v.value = nr.start.value
-            nr._removevalue(nr.start)
+        new_left.insert(v.value)
+        if new_left.last.prev is not None:
+            new_left.last.set_left_child(new_left.last.prev.right_child, new_left)
+            new_left.last.prev.clear_right_child()
+        elif new_left.orphan is not None:
+            new_left.last.set_left_child(new_left.orphan, new_left)
+            new_left.orphan = None
+        if new_right.size > 0:
+            new_left.last.set_right_child(new_right.start.left_child, new_left)
+            if new_right.size == 1:
+                new_right.orphan = new_right.start.right_child
+            v.value = new_right.start.value
+            new_right._remove_value(new_right.start)
         else:
-            nl.last.setrightchild(nr.orphan, nl)
+            new_left.last.set_right_child(new_right.orphan, new_left)
             v.value = None
-            nr.orphan = None
+            new_right.orphan = None
 
-    def _shiftright(self, nl: BTNode, v: BTValue, nr: BTNode) -> None:
-        nr.insert(v.value)
-        if nr.orphan is not None:
-            nr.start.setrightchild(nr.orphan, nr)
-            nr.orphan = None
-        if nl.last is not None:
-            nr.start.setleftchild(nl.last.rc, nr)
-            v.value = nl.last.value
-            if nl.last.prev is not None:
-                nl.last.prev.setrightchild(nl.last.lc)
-            nl._removevalue(nl.last)
+    def _shift_right(self, new_left: BTNode, v: BTValue, new_right: BTNode) -> None:
+        new_right.insert(v.value)
+        if new_right.orphan is not None:
+            new_right.start.set_right_child(new_right.orphan, new_right)
+            new_right.orphan = None
+        if new_left.last is not None:
+            new_right.start.set_left_child(new_left.last.right_child, new_right)
+            v.value = new_left.last.value
+            if new_left.last.prev is not None:
+                new_left.last.prev.set_right_child(new_left.last.left_child)
+            new_left._remove_value(new_left.last)
         else:
-            nr.start.setleftchild(nl.orphan, nr)
-            nl.orphan = None
+            new_right.start.set_left_child(new_left.orphan, new_right)
+            new_left.orphan = None
             v.value = None
 
-    def _redistribute(self, nl: BTNode, v: BTValue, nr: BTNode) -> None:
-        while self.size < ceil(self.deg / 2) - 1:
-            if nl is self:
-                self._shiftleft(nl, v, nr)
+    def _redistribute(self, new_left: BTNode, v: BTValue, new_right: BTNode) -> None:
+        while self.size < ceil(self.degree / 2) - 1:
+            if new_left is self:
+                self._shift_left(new_left, v, new_right)
             else:
-                self._shiftright(nl, v, nr)
+                self._shift_right(new_left, v, new_right)
 
-    def _merge(self, nl: BTNode, v: BTValue, nr: BTNode) -> None:
+    def _merge(self, new_left: BTNode, v: BTValue, new_right: BTNode) -> None:
         while self.size > 0 or v.value is not None:
-            if nl is self:
-                self._shiftright(nl, v, nr)
+            if new_left is self:
+                self._shift_right(new_left, v, new_right)
             else:
-                self._shiftleft(nl, v, nr)
-        nn = nl
-        if nl is self:
-            nn = nr
-        if self.pn.size == 1:
-            if self.pn.pn is None:
-                nn.pn, nn.pv = None, None
-                return nn
+                self._shift_left(new_left, v, new_right)
+        new_node = new_left
+        if new_left is self:
+            new_node = new_right
+        if self.parent_value.size == 1:
+            if self.parent_value.parent_node is None:
+                new_node.parent_node, new_node.parent_value = None, None
+                return new_node
             else:
-                self.pn.orphan = nn
-                self.pn._removevalue(v)
+                self.parent_value.orphan = new_node
+                self.parent_value._remove_value(v)
         elif v.next is None:
-            v.prev.setrightchild(nn, self.pn)
-            self.pn._removevalue(v)
+            v.prev.set_right_child(new_node, self.parent_node)
+            self.parent_value._remove_value(v)
         else:
-            v.next.setleftchild(nn, self.pn)
-            self.pn._removevalue(v)
+            v.next.set_left_child(new_node, self.parent_node)
+            self.parent_value._remove_value(v)
         return None
 
     def removal_consolidate(self) -> BTNode:
-        nroot = None
-        if self.size < ceil(self.deg / 2) - 1:
-            (ps, ss) = self._siblings()
-            pn = self.pn
-            if ps is not None:
-                if ps.size > ceil(self.deg / 2) - 1:
-                    self._redistribute(ps, ps.pv, self)
+        new_root = None
+        if self.size < ceil(self.degree / 2) - 1:
+            (previous_sibling, next_sibling) = self._siblings()
+            parent_node = self.parent_node
+            if previous_sibling is not None:
+                if previous_sibling.size > ceil(self.degree / 2) - 1:
+                    self._redistribute(previous_sibling, previous_sibling.parent_value, self)
                 else:
-                    nroot = self._merge(ps, ps.pv, self)
-            elif ss is not None:
-                if ss.size > ceil(self.deg / 2) - 1:
-                    self._redistribute(self, self.pv, ss)
+                    new_root = self._merge(previous_sibling, previous_sibling.parent_value, self)
+            elif next_sibling is not None:
+                if next_sibling.size > ceil(self.degree / 2) - 1:
+                    self._redistribute(self, self.parent_value, next_sibling)
                 else:
-                    nroot = self._merge(self, self.pv, ss)
-            if nroot is None and pn is not None:
-                nroot = pn.removal_consolidate()
-        return nroot
+                    new_root = self._merge(self, self.parent_value, next_sibling)
+            if new_root is None and parent_node is not None:
+                new_root = parent_node.removal_consolidate()
+        return new_root
 
     def remove(self, v: BTValue) -> BTNode:
-        if v.lc is not None:
-            (n, pv) = v.lc._maxvalue()
-            v.value = pv.value
-            n._removevalue(pv)
-            return n
+        if v.left_child is not None:
+            (node, parent_value) = v.left_child._max_value()
+            v.value = parent_value.value
+            node._remove_value(parent_value)
+            return node
         else:
-            self._removevalue(v)
+            self._remove_value(v)
             return self
-
 
 class BTree:
     root: BTNode
-    deg: int
-    root, deg = None, 5
+    degree: int
+    root, degree = None, 5
 
-    def __init__(self, value, deg=5):
-        self.root = BTNode(value, deg=deg)
-        self.deg = deg
+    def __init__(self, value, degree=5):
+        self.root = BTNode(value, degree=degree)
+        self.degree = degree
 
     def search(self, value) -> BTValue:
-        (n, v) = self.root.search(value)
+        (node, v) = self.root.search(value)
         return v
 
     def _insert(self, val) -> None:
-        (n, v) = self.root.search(val)
-        n.insert(val)
-        nroot = n.split()
-        if nroot is not None:
-            self.root = nroot
+        (node, v) = self.root.search(val)
+        node.insert(val)
+        new_root = node.split()
+        if new_root is not None:
+            self.root = new_root
 
     def insert(self, value) -> None:
         if type(value) is list:
@@ -313,12 +308,12 @@ class BTree:
             self._insert(value)
 
     def _remove(self, val) -> None:
-        (n, v) = self.root.search(val)
+        (node, v) = self.root.search(val)
         if v is not None:
-            n = n.remove(v)
-            nroot = n.removal_consolidate()
-            if nroot is not None:
-                self.root = nroot
+            node = node.remove(v)
+            new_root = node.removal_consolidate()
+            if new_root is not None:
+                self.root = new_root
 
     def remove(self, value) -> None:
         if type(value) is list:
